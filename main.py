@@ -32,28 +32,45 @@ ENTRY = (
 
 DEFAULT_OUTPUT = "/output/entry.txt"
 
+# Competition gate: the entry line must be 1-200 characters, a single line.
+MAX_CHARS = 200
+MIN_CHARS = 1
+
 
 def validate_entry(line):
     """Check the entry line against the competition gate.
 
     Returns a list of problems (empty when valid): the line must be
-    1-200 characters, a single line, and not only whitespace.
+    MIN_CHARS-MAX_CHARS characters, a single line, and not only whitespace.
     """
     problems = []
     if not isinstance(line, str):
         return ["entry is not a string"]
     if not line.strip():
         problems.append("entry is blank or only whitespace")
-    if len(line) > 200:
-        problems.append("entry is %d characters, over the 200 limit" % len(line))
-    if len(line) < 1:
+    if len(line) > MAX_CHARS:
+        problems.append(
+            "entry is %d characters, over the %d limit" % (len(line), MAX_CHARS)
+        )
+    if len(line) < MIN_CHARS:
         problems.append("entry is empty")
     if "\n" in line or "\r" in line:
         problems.append("entry spans more than one line")
+    # Control characters cannot render in an error dialog.
+    if any(ord(ch) < 0x20 for ch in line):
+        problems.append("entry contains control characters")
+    # The em-dash must survive a UTF-8 round-trip intact.
+    if line.encode("utf-8").decode("utf-8") != line:
+        problems.append("entry is not stable under a UTF-8 round-trip")
     return problems
 
 
 def main():
+    # Belt and braces: the constant and the entry text must agree.
+    assert MIN_CHARS <= len(ENTRY) <= MAX_CHARS, (
+        "entry is %d characters, outside the %d-%d range"
+        % (len(ENTRY), MIN_CHARS, MAX_CHARS)
+    )
     problems = validate_entry(ENTRY)
     if problems:
         for problem in problems:
